@@ -5,6 +5,6 @@
   tasks:
     - name: installing docker
       yum:
-        name: docker.io
+        name: docker
         update_cache: yes
         state: present
