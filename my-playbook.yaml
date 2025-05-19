@@ -1,0 +1,20 @@
+---
+- name: Config nginx web server
+  hosts: webservers
+  tasks:
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: latest
+        update_cache: yes
+
+    - name: Start nginx service
+      service:
+        name: nginx
+        state: started
+        enabled: true
+
+    - name: Reload nginx service
+      service:
+        name: nginx
+        state: reloaded

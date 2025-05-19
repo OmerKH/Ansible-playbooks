@@ -1,0 +1,35 @@
+---
+- name: insatll nodejs
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Install Node.js and npm
+      yum:
+        name:
+          - nodejs
+          - npm
+        state: present
+
+- name: Deploy Node.js application
+  hosts: webservers
+  become: yes
+  vars_files: node-vars
+  tasks:
+    - name: Extract application files
+      unarchive:
+        src: /mnt/c/Users/omer_/Documents/Devops/Ansible/nodejs-app/nodejs-app-1.0.0.tgz
+        dest: "{{app_dest}}"
+    - name: Install application dependencies
+      npm:
+        path: "{{app_dest}}package"
+    - name: Start application
+      command:
+        chdir: "{{app_dest}}package/app"
+        cmd: node server
+      async: 1000
+      poll: 0
+    - name: app status
+      shell: ps aux | grep node
+      register: app_log
+    - debug:
+        msg: "{{ app_log.stdout_lines }}"

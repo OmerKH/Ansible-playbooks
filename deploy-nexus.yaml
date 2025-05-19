@@ -1,0 +1,113 @@
+---
+- name: yum update
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Update all packages to the latest version
+      yum:
+        name: "*"
+        state: latest
+- name: Install java and net-tools
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Install Java and net-tools
+      yum:
+        name:
+          - java-1.8.0-openjdk-headless
+          - net-tools
+        state: present
+
+- name: Download Nexus
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Ensure /opt directory exists
+      stat:
+        path: /opt/nexus
+      register: stat_result
+    - name: Download Nexus
+      get_url:
+        url: https://download.sonatype.com/nexus/3/nexus-3.65.0-02-unix.tar.gz
+        dest: /opt/nexus.tar.gz
+      register: nexus_download
+    # - debug:
+    #     msg: Nexus download {{ nexus_download.status }}"
+    - name: Extract Nexus
+      unarchive:
+        src: "{{ nexus_download.dest }}"
+        dest: /opt/
+        remote_src: yes
+      when: not stat_result.stat.exists
+    - name: Find Nexus directory
+      find:
+        paths: /opt/
+        patterns: "nexus-3.*"
+        file_type: directory
+      register: nexus_dir
+    - name: Rename Nexus directory
+      command: mv {{ nexus_dir.files[0].path }} /opt/nexus
+      when: not stat_result.stat.exists
+
+- name: Create Nexus user
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Create Nexus group
+      group:
+        name: nexus
+        state: present
+    - name: Create Nexus user
+      user:
+        name: nexus
+        group: nexus
+    - name: Create Nexus home directory
+      file:
+        path: /opt/nexus
+        state: directory
+        owner: nexus
+        group: nexus
+        recurse: yes
+    - name: Create Sonatype home directory
+      file:
+        path: /opt/sonatype-work
+        state: directory
+        owner: nexus
+        group: nexus
+        recurse: yes
+
+- name: Configure Nexus
+  hosts: webservers
+  become: true
+  become_user: nexus
+  tasks:
+    - name: set run_as_user to nexus
+      # blockinfile:
+      #   path: /opt/nexus/bin/nexus.properties
+      #   block: |
+      #     run_as_user="nexus"
+      lineinfile:
+        path: /opt/nexus/bin/nexus.rc
+        regexp: '^#run_as_user=""'
+        line: 'run_as_user="nexus"'
+    - name: start nexus
+      command: /opt/nexus/bin/nexus start
+      async: 10
+      poll: 0
+- name: varify nexus status
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Check Nexus status
+      shell: ps aux | grep nexus
+      register: nexus_status
+    - debug:
+        msg: "Nexus is running {{ nexus_status.stdout_lines }}"
+    - name: wait for nexus to start
+      pause:
+        seconds: 60
+    - name: check netstat
+      command: netstat -plnt
+      register: netstat_status
+    - debug:
+        msg: "Netstat output {{ netstat_status.stdout_lines }}"
