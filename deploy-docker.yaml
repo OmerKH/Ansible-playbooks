@@ -8,3 +8,58 @@
         name: docker
         update_cache: yes
         state: present
+
+- name: install docker compose
+  hosts: docker_server
+  become: yes
+  tasks:
+    - name: Create docker cli-plugins directory
+      file:
+        path: /usr/local/lib/docker/cli-plugins
+        state: directory
+        mode: "0755"
+
+    - name: Get architecture of remote machine
+      shell: uname -m
+      register: remote_arch
+
+    - name: Install docker-compose
+      get_url:
+        url: "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-{{ remote_arch.stdout }}"
+        dest: /usr/local/lib/docker/cli-plugins/docker-compose
+        mode: "0755"
+
+- name: start docker service
+  hosts: docker_server
+  become: yes
+  tasks:
+    - name: start docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+- name: add ec2-user to docker group
+  hosts: docker_server
+  become: yes
+  tasks:
+    - name: add ec2-user to docker group
+      user:
+        name: ec2-user
+        group: docker
+        append: yes
+    - name: Reconnect to docker session
+      meta: reset_connection
+      when: ansible_user_id == "ec2-user"
+
+- name: start docker container
+  hosts: docker_server
+  become: yes
+  tasks:
+    - name: copy docker-compose file
+      copy:
+        src: /mnt/c/Users/omer_/Documents/Docker_Project/compose-example
+        dest: /home/ec2-user/
+    - name: start docker container
+      community.docker.docker_compose_v2:
+        project_src: /home/ec2-user/compose-example
