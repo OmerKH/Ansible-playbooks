@@ -1,5 +1,5 @@
 ---
-- name: insatll nodejs
+- name: install nodejs
   hosts: webservers
   become: yes
   tasks:
@@ -17,7 +17,7 @@
   tasks:
     - name: Extract application files
       unarchive:
-        src: /mnt/c/Users/omer_/Documents/Devops/Ansible/nodejs-app/nodejs-app-1.0.0.tgz
+        src: nodejs-app/nodejs-app-1.0.0.tgz
         dest: "{{app_dest}}"
     - name: Install application dependencies
       npm:
